@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.local
+*.log
+.DS_Store
+.vercel/
+.netlify/
+supabase/.branches/
+supabase/.temp/
+test-results/
+playwright-report/
