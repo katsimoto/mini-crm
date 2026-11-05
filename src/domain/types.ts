@@ -23,6 +23,7 @@ export interface Task {
   assignee_id: string;
   assignee_name: string;
   status: TaskStatus;
+  status_revision: number;
   created_by: string;
   author_name: string;
   created_at: string;

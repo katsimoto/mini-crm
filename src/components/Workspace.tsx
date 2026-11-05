@@ -55,7 +55,6 @@ function WorkspaceContent({ view, profile, save, busy }: WorkspaceContentProps) 
 
   return (
     <fieldset className="workspace" disabled={busy} aria-busy={busy}>
-      {busy && <p role="status">Сохраняем…</p>}
       {renderPage(view.screen, profile, save)}
     </fieldset>
   );
@@ -63,7 +62,7 @@ function WorkspaceContent({ view, profile, save, busy }: WorkspaceContentProps) 
 
 export function Workspace({ profile }: { profile: Profile }) {
   const [view, setView] = useState<View>({ status: 'loading' });
-  const [revision, setRevision] = useState(0);
+  const [mustRefresh, setMustRefresh] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const writePending = useRef(false);
@@ -90,20 +89,29 @@ export function Workspace({ profile }: { profile: Profile }) {
     return () => {
       current = false;
     };
-  }, [profile, revision]);
+  }, [profile]);
 
-  function refresh() {
-    setView({ status: 'loading' });
-    setRevision((previous) => previous + 1);
+  // Keep the current form mounted during a reread so a failed write preserves the draft.
+  async function reread() {
+    try {
+      const screen = await readScreen(profile, window.location.pathname);
+      if (mounted.current) {
+        setView({ status: 'ready', screen });
+        setMustRefresh(false);
+      }
+    } catch {
+      if (mounted.current) setMustRefresh(true);
+    }
   }
 
-  function refreshManually() {
-    setNotice('');
-    refresh();
+  async function refreshManually() {
+    setBusy(true);
+    await reread();
+    if (mounted.current) setBusy(false);
   }
 
   const save: Save = async (command, args, destination) => {
-    if (writePending.current) return;
+    if (writePending.current || mustRefresh) return;
     writePending.current = true;
     setBusy(true);
     setNotice('');
@@ -115,12 +123,15 @@ export function Workspace({ profile }: { profile: Profile }) {
         return;
       }
       setNotice('Изменения сохранены.');
+      // End a successfully submitted edit before showing the updated records.
+      setView({ status: 'loading' });
     } catch (error) {
       if (!mounted.current) return;
       setNotice(writeError(error));
     }
     // A lost response can follow a successful write. Reread before allowing another action.
-    refresh();
+    await reread();
+    if (!mounted.current) return;
     writePending.current = false;
     setBusy(false);
   };
@@ -132,7 +143,7 @@ export function Workspace({ profile }: { profile: Profile }) {
         {profile.role === 'executor' && <a href="/my-tasks">Мои задачи</a>}
         <button
           className="link"
-          disabled={busy || view.status === 'loading'}
+          disabled={busy || (view.status === 'loading' && !mustRefresh)}
           onClick={refreshManually}
         >
           Обновить
@@ -143,7 +154,12 @@ export function Workspace({ profile }: { profile: Profile }) {
           {notice}
         </p>
       )}
-      <WorkspaceContent view={view} profile={profile} save={save} busy={busy} />
+      {mustRefresh && (
+        <p className="error" role="alert">
+          Не удалось обновить данные. Перед следующим сохранением нажмите «Обновить».
+        </p>
+      )}
+      <WorkspaceContent view={view} profile={profile} save={save} busy={busy || mustRefresh} />
     </>
   );
 }

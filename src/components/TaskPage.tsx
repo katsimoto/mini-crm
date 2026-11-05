@@ -51,6 +51,7 @@ function StatusActions({ task, profile, save }: StatusActionsProps) {
     save('transition_task', {
       p_task_id: task.id,
       p_expected_status: task.status,
+      p_expected_revision: task.status_revision,
       p_to_status: to,
       p_comment: trimmedComment || null,
     });
@@ -138,7 +139,7 @@ export function TaskPage({ task, events, profile, save }: TaskPageProps) {
         </div>
       )}
       {editing && <TaskEditor objectId={task.object_id} task={task} save={save} />}
-      <StatusActions task={task} profile={profile} save={save} />
+      <StatusActions key={task.status_revision} task={task} profile={profile} save={save} />
       <h2>История статусов</h2>
       <StatusHistory events={events} />
     </>

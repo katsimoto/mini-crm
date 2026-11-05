@@ -48,9 +48,15 @@ const anon = makeClient();
 const rpc = (actor, name, args) => actor.client.rpc(name, args).retry(false);
 const read = (actor, table, field, id) => ok(actor.client.from(table).select('*').eq(field, id).order('id'));
 const history = (actor, id) => read(actor, 'task_status_history', 'task_id', id);
-const step = (actor, id, from, to, comment = null) => rpc(actor, 'transition_task', {
-  p_task_id: id, p_expected_status: from, p_to_status: to, p_comment: comment,
-});
+async function step(actor, id, from, to, comment = null, revision) {
+  if (revision === undefined) {
+    const task = await ok(actor.client.from('tasks').select('status_revision').eq('id', id).maybeSingle());
+    revision = task?.status_revision ?? null;
+  }
+  return rpc(actor, 'transition_task', {
+    p_task_id: id, p_expected_status: from, p_expected_revision: revision, p_to_status: to, p_comment: comment,
+  });
+}
 const sites = [], tasks = [];
 async function site() {
   const id = await ok(rpc(m, 'create_object', { p_name: 'Проверка API ' + randomUUID(), p_address: 'Тестовый адрес' }));
@@ -135,10 +141,17 @@ try {
   await race(step(e, own, 'new', 'in_progress'), step(e, own, 'new', 'in_progress'));
   assert.equal((await history(m, own)).length, 2);
   await ok(step(e, own, 'in_progress', 'in_review'));
+  const firstReview = (await read(m, 'tasks', 'id', own))[0];
   await denied(step(m2, own, 'in_review', 'rework', ' \t\n'), '22023');
   await ok(step(m2, own, 'in_review', 'rework', 'Проверить размер'));
   await ok(step(e, own, 'rework', 'in_progress'));
   await ok(step(e, own, 'in_progress', 'in_review'));
+  const beforeStale = await history(m, own);
+  const stale = await step(m, own, 'in_review', 'accepted', null, firstReview.status_revision);
+  assert.equal(stale.error?.code, 'PT409');
+  assert.equal(stale.status, 409);
+  assert.deepEqual(await history(m, own), beforeStale);
+  console.log('PASS повторная проверка: старая вкладка получает HTTP 409, история сохранена');
   const accepted = await race(step(m, own, 'in_review', 'accepted'), step(m2, own, 'in_review', 'rework', 'Исправить'));
   const final = accepted ? 'accepted' : 'rework';
   const events = await history(m, own);

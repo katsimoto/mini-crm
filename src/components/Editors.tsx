@@ -6,7 +6,7 @@ import type { Command } from '../lib/crm';
 
 export type Save = (
   command: Command,
-  args: Record<string, string | null>,
+  args: Record<string, string | number | null>,
   destination?: (id: string) => string
 ) => void;
 

@@ -48,20 +48,20 @@ begin
 
   perform set_config('request.jwt.claim.sub', v_executor1::text, true);
   perform set_config('request.jwt.claims', jsonb_build_object('sub', v_executor1, 'role', 'authenticated')::text, true);
-  perform public.transition_task(v_task2, 'new', 'in_progress');
-  perform public.transition_task(v_task5, 'new', 'in_progress');
-  perform public.transition_task(v_task5, 'in_progress', 'in_review');
+  perform public.transition_task(v_task2, 'new', 1, 'in_progress');
+  perform public.transition_task(v_task5, 'new', 1, 'in_progress');
+  perform public.transition_task(v_task5, 'in_progress', 2, 'in_review');
 
   perform set_config('request.jwt.claim.sub', v_executor2::text, true);
   perform set_config('request.jwt.claims', jsonb_build_object('sub', v_executor2, 'role', 'authenticated')::text, true);
-  perform public.transition_task(v_task3, 'new', 'in_progress');
-  perform public.transition_task(v_task3, 'in_progress', 'in_review');
-  perform public.transition_task(v_task4, 'new', 'in_progress');
-  perform public.transition_task(v_task4, 'in_progress', 'in_review');
+  perform public.transition_task(v_task3, 'new', 1, 'in_progress');
+  perform public.transition_task(v_task3, 'in_progress', 2, 'in_review');
+  perform public.transition_task(v_task4, 'new', 1, 'in_progress');
+  perform public.transition_task(v_task4, 'in_progress', 2, 'in_review');
 
   perform set_config('request.jwt.claim.sub', v_manager::text, true);
   perform set_config('request.jwt.claims', jsonb_build_object('sub', v_manager, 'role', 'authenticated')::text, true);
-  perform public.transition_task(v_task4, 'in_review', 'accepted', 'Проверка завершена, замечаний нет.');
-  perform public.transition_task(v_task5, 'in_review', 'rework', 'Повторно обработать стык на северной стороне.');
+  perform public.transition_task(v_task4, 'in_review', 3, 'accepted', 'Проверка завершена, замечаний нет.');
+  perform public.transition_task(v_task5, 'in_review', 3, 'rework', 'Повторно обработать стык на северной стороне.');
 end $seed$;
 commit;

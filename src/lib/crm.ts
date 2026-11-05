@@ -102,7 +102,7 @@ export type Command =
 
 export async function write(
   command: Command,
-  args: Record<string, string | null>
+  args: Record<string, string | number | null>
 ): Promise<string | null> {
   const { data, error } = await client().rpc(command, args).retry(false);
   if (error) throw error;

@@ -53,8 +53,11 @@ const createObject = async (actor = users.manager, name = 'Тестовая ст
   (await asUser(actor, () => one('select public.create_object($1, $2) as id', [name, 'Алматы, тестовый адрес']))).id;
 const createTask = async (objectId, assignee = users.alice, actor = users.manager) =>
   (await asUser(actor, () => one('select public.create_task($1, $2, $3, $4) as id', ['Проверить монтаж', '', objectId, assignee]))).id;
-const transition = (actor, id, from, to, comment = null) => asUser(actor, () =>
-  one('select public.transition_task($1, $2, $3, $4) as id', [id, from, to, comment]));
+const transition = (actor, id, from, to, comment = null, revision) => asUser(actor, async () => {
+  const task = await one('select status_revision from public.tasks where id=$1', [id]);
+  const expected = revision === undefined ? task?.status_revision ?? null : revision;
+  return one('select public.transition_task($1,$2,$3,$4,$5) as id', [id, from, expected, to, comment]);
+});
 const taskSnapshot = (id) => one(`select t.*, (select count(*)::int from public.task_status_history h where h.task_id=t.id) as events
   from public.tasks t where t.id=$1`, [id]);
 
@@ -223,6 +226,21 @@ try {
     const after = await taskSnapshot(id);
     await denied(() => transition(users.manager, id, 'in_review', 'rework', 'Повтор'), ['PT409']);
     assert.deepEqual(await taskSnapshot(id), after);
+  });
+
+  await test('a decision from the first review cannot accept the second review', async () => {
+    const id = await inStatus(sharedObject, 'in_review');
+    const first = await taskSnapshot(id);
+    await transition(users.manager2, id, 'in_review', 'rework', 'Исправить размер');
+    await transition(users.alice, id, 'rework', 'in_progress');
+    await transition(users.alice, id, 'in_progress', 'in_review');
+    const second = await taskSnapshot(id);
+    assert.equal(second.status_revision, first.status_revision + 3);
+    for (const stale of [first.status_revision, null]) {
+      await denied(() => transition(users.manager, id, 'in_review', 'accepted', null, stale), ['PT409']);
+      assert.deepEqual(await taskSnapshot(id), second);
+    }
+    await transition(users.manager, id, 'in_review', 'accepted', null, second.status_revision);
   });
 
   await test('reassignment transfers access/history and keeps status, author and creation time', async () => {

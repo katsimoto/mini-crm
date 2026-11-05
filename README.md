@@ -12,7 +12,7 @@
 Требуются Node.js 22.12+ и отдельный проект Supabase.
 
 1. В Auth включите вход по email и паролю, отключите открытую регистрацию и анонимный вход. Для Data API откройте схему `public`, оставив `private` закрытой.
-2. В пустой базе выполните [начальную миграцию](supabase/migrations/202611040001_initial.sql), затем [миграцию обработки конфликтов](supabase/migrations/202611050001_status_conflict.sql).
+2. В пустой базе выполните [начальную миграцию](supabase/migrations/202611040001_initial.sql), затем [миграцию обработки конфликтов](supabase/migrations/202611050001_status_conflict.sql) и [миграцию номера смены статуса](supabase/migrations/202611050002_status_revision.sql).
 3. Создайте в Auth три подтверждённых аккаунта. В копии [seed-demo.sql](supabase/seed-demo.sql) укажите их email в порядке «постановщик, исполнитель 1, исполнитель 2» и выполните скрипт. Он назначит роли и создаст три объекта и шесть задач во всех пяти статусах.
 4. Выполните `npm ci` и `cp .env.example .env.local`. Укажите `VITE_SUPABASE_URL` и `VITE_SUPABASE_PUBLISHABLE_KEY`. В клиенте используется publishable key или legacy anon key.
 5. Запустите `npm run dev` и откройте адрес из терминала. Для production выполните `npm run build`. Результат находится в `dist/`.
